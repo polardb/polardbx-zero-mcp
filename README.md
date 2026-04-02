@@ -1,8 +1,8 @@
 # PolarDB-X Cloud Zero MCP Server
 
-Give any AI agent a persistent MySQL database through the Model Context Protocol.
+Give any AI agent persistent MySQL databases through the Model Context Protocol.
 
-Create a free PolarDB-X Cloud Zero instance on demand via `create_instance()`, or bring your own MySQL credentials. No signup, no API keys needed.
+Supports **multiple simultaneous instances** — create, manage, and query several databases at once.
 
 ## How It Works
 
@@ -21,9 +21,10 @@ Create a free PolarDB-X Cloud Zero instance on demand via `create_instance()`, o
                                                └──────────────────┘
 ```
 
-1. Agent calls `create_instance()` (or you provide MySQL credentials via env vars)
-2. Server creates a PolarDB-X Cloud Zero instance and caches credentials locally
-3. All SQL is executed over the **MySQL wire protocol** (pymysql + SSL)
+1. Agent calls `create_instance()` to create one or more databases (or provide credentials via env vars)
+2. Server registers instances in a local registry (`~/.polardbx-zero-mcp/instances.json`)
+3. All tools require an explicit `instance_id` — use `list_instances()` to discover them
+4. SQL is executed over the **MySQL wire protocol** (pymysql + SSL)
 
 ## Installation
 
@@ -66,7 +67,7 @@ polardbx-zero-mcp
 
 By default, no configuration is needed — just call `create_instance()` to get a free database.
 
-To connect to your own MySQL or PolarDB-X instance, pass credentials via `env`:
+To connect to your own MySQL or PolarDB-X instance, pass credentials via `env`. They will be registered as `instance_id="env"`:
 
 ```json
 {
@@ -98,11 +99,15 @@ Or use individual variables:
 
 | Tool | Description |
 |:---|:---|
-| `get_instance_status` | Check if an instance is available, show connection info and remaining TTL |
-| `create_instance` | Create a new PolarDB-X Cloud Zero instance |
-| `get_database_info` | Database version, connection info, table count |
+| `list_instances` | List all registered instances with edition, status, and expiry |
+| `create_instance` | Create a new PolarDB-X Cloud Zero instance (standard or enterprise) |
+| `remove_instance` | Remove an instance and close all its connections |
+| `get_instance_status` | Check a specific instance's connection info and remaining TTL |
+| `get_database_info` | Database version, connection info, table count for an instance |
 
 ### SQL Execution
+
+All SQL tools require `instance_id`.
 
 | Tool | Description |
 |:---|:---|
@@ -113,14 +118,14 @@ Or use individual variables:
 
 ### Stateful Connections
 
-For operations that need session state (SET variables, transactions):
+Connections are bound to a specific instance. The `conn_id` includes the instance name (e.g. `db1_conn_1`) for easy identification.
 
 | Tool | Description |
 |:---|:---|
-| `acquire_connection` | Create a persistent connection, returns a `conn_id` |
+| `acquire_connection` | Create a persistent connection on a specific instance |
 | `release_connection` | Release a specific connection (rolls back uncommitted transactions) |
-| `release_all_connections` | Release all connections |
-| `list_connections` | List active connections with idle status |
+| `release_all_connections` | Release connections (optionally filtered by instance) |
+| `list_connections` | List active connections (optionally filtered by instance) |
 
 ### Key Parameters
 
@@ -128,6 +133,7 @@ For operations that need session state (SET variables, transactions):
 
 | Parameter | Type | Default | Description |
 |:---|:---|:---|:---|
+| `name` | string | `""` | Optional name (e.g. "mydb"). Auto-generates `inst_N` if empty |
 | `edition` | string | `"standard"` | `"standard"` or `"enterprise"` |
 | `ttl_minutes` | int | `720` | Instance TTL in minutes (default 12h) |
 
@@ -136,14 +142,16 @@ For operations that need session state (SET variables, transactions):
 | Parameter | Type | Default | Description |
 |:---|:---|:---|:---|
 | `sql` | string | (required) | SQL statement to execute |
+| `instance_id` | string | (required) | Target instance |
 | `database` | string | `""` | Target database (optional) |
-| `conn_id` | string | `""` | Stateful connection ID from `acquire_connection()` (optional) |
+| `conn_id` | string | `""` | Stateful connection ID (optional) |
 
 **batch_execute:**
 
 | Parameter | Type | Default | Description |
 |:---|:---|:---|:---|
 | `statements` | list[string] | (required) | SQL statements to execute in order |
+| `instance_id` | string | (required) | Target instance |
 | `database` | string | `""` | Target database (optional) |
 | `conn_id` | string | `""` | Stateful connection ID (optional) |
 
@@ -151,6 +159,7 @@ For operations that need session state (SET variables, transactions):
 
 | Parameter | Type | Default | Description |
 |:---|:---|:---|:---|
+| `instance_id` | string | (required) | Target instance to connect to |
 | `database` | string | `""` | Target database (optional) |
 | `idle_timeout_minutes` | int | `30` | Auto-release after idle (minutes) |
 
