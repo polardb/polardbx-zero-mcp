@@ -14,7 +14,7 @@ Usage:
     uv run server.py --transport http   # HTTP transport (for web clients)
 
 Environment variables (all optional):
-    POLARDBX_ZERO_API  - Zero API endpoint (default: https://zero.polardbx.com/v1/instances)
+    POLARDBX_ZERO_API  - Zero API endpoint (default: https://zero.polardbx.com/api/v1/instances)
     MYSQL_URL          - mysql://user:password@host:port/database (use existing DB)
     MYSQL_HOST         - MySQL host (use existing DB)
     MYSQL_PORT         - MySQL port (default: 3306)
@@ -41,7 +41,7 @@ import pymysql
 from mcp.server.fastmcp import FastMCP
 
 # --- Constants ---
-DEFAULT_ZERO_API = "https://zero.polardbx.com/v1/instances"
+DEFAULT_ZERO_API = "https://zero.polardbx.com/api/v1/instances"
 STATE_FILE = Path.home() / ".polardbx-zero-mcp" / "instance.json"
 DEFAULT_TTL_MINUTES = 720  # 12 hours
 
