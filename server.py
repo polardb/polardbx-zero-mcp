@@ -763,19 +763,35 @@ async def get_database_info() -> str:
 
         db_result = await execute_sql("SELECT DATABASE() as db")
         db_rows = db_result.get("rows_as_dicts", [])
-        db = list(db_rows[0].values())[0] if db_rows else "unknown"
+        current_db = list(db_rows[0].values())[0] if db_rows else None
 
-        tables_result = await execute_sql("SHOW TABLES")
-        table_count = len(tables_result.get("rows_as_dicts", []))
+        # List user databases (exclude system schemas)
+        dbs_result = await execute_sql("SHOW DATABASES")
+        all_dbs = [list(r.values())[0] for r in dbs_result.get("rows_as_dicts", [])]
+        user_dbs = [d for d in all_dbs if d.lower() not in
+                    ("information_schema", "mysql", "performance_schema", "sys",
+                     "__cdc__", "polardbx", "metadb")]
+
+        # Count tables in current database if one is selected
+        table_count = None
+        if current_db:
+            try:
+                tables_result = await execute_sql("SHOW TABLES")
+                table_count = len(tables_result.get("rows_as_dicts", []))
+            except Exception:
+                pass
 
         info = (
-            f"Database: {db}\n"
+            f"Current database: {current_db or '(none)'}\n"
             f"PolarDB-X Version: {version}\n"
             f"Host: {config.host}\n"
             f"Port: {config.port}\n"
-            f"Tables: {table_count}\n"
-            f"Connection: MySQL protocol (pymysql)\n"
         )
+        if table_count is not None:
+            info += f"Tables in {current_db}: {table_count}\n"
+        info += f"User databases: {', '.join(user_dbs) if user_dbs else '(none)'}\n"
+        info += f"Connection: MySQL protocol (pymysql)\n"
+
         if config.expires_at:
             info += f"Instance expires: {config.expires_at}\n"
         if config.assignment_id:
