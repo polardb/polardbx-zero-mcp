@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "polardbx-zero-mcp"
+version = "0.1.0"
+description = "MCP server that gives AI agents a persistent MySQL database via PolarDB-X Cloud Zero"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+keywords = ["mcp", "polardbx", "mysql", "database", "ai-agent"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Database",
+]
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.26.0",
+    "pymysql>=1.1.0",
+    "cryptography>=44.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/polardb/polardbx-zero-mcp"
+Repository = "https://github.com/polardb/polardbx-zero-mcp"
+
+[project.scripts]
+polardbx-zero-mcp = "server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+only-include = ["server.py"]
+
+[tool.hatch.build.targets.sdist]
+only-include = ["server.py", "pyproject.toml", "README.md"]
