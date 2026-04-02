@@ -27,21 +27,25 @@ Create a free PolarDB-X Cloud Zero instance on demand via `create_instance()`, o
 
 ## Installation
 
-### From PyPI (recommended)
-
 ```bash
-# Claude Code
-claude mcp add polardbx -- uvx polardbx-zero-mcp
+pip install polardbx-zero-mcp
 ```
 
-For other IDEs (Qoder, Cursor, Windsurf, Claude Desktop), add to your MCP config file (mcp.json):
+### IDE / MCP Client Configuration
+
+**Claude Code:**
+
+```bash
+claude mcp add polardbx -- polardbx-zero-mcp
+```
+
+**Qoder / Cursor / Windsurf / Claude Desktop** — add to mcp.json:
 
 ```json
 {
   "mcpServers": {
     "polardbx": {
-      "command": "uvx",
-      "args": ["polardbx-zero-mcp"]
+      "command": "polardbx-zero-mcp"
     }
   }
 }
@@ -52,11 +56,11 @@ For other IDEs (Qoder, Cursor, Windsurf, Claude Desktop), add to your MCP config
 ```bash
 git clone https://github.com/polardb/polardbx-zero-mcp.git
 cd polardbx-zero-mcp
-uv sync
-uv run server.py
+pip install -e .
+polardbx-zero-mcp
 ```
 
-> HTTP transport: `uvx polardbx-zero-mcp --transport http` (default `http://localhost:8000/mcp`)
+> HTTP transport: `polardbx-zero-mcp --transport http` (default `http://localhost:8000/mcp`)
 
 ## Configuration
 
@@ -68,8 +72,7 @@ To connect to your own MySQL or PolarDB-X instance, pass credentials via `env`:
 {
   "mcpServers": {
     "polardbx": {
-      "command": "uvx",
-      "args": ["polardbx-zero-mcp"],
+      "command": "polardbx-zero-mcp",
       "env": {
         "MYSQL_URL": "mysql://user:password@host:3306/mydb"
       }
