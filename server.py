@@ -10,8 +10,8 @@ or provide your own MySQL credentials via environment variables.
 Uses MySQL protocol for SQL execution (pymysql).
 
 Usage:
-    uv run server.py                    # stdio transport (for Qoder / Claude Desktop)
-    uv run server.py --transport http   # HTTP transport (for web clients)
+    polardbx-zero-mcp                    # stdio transport (for Qoder / Claude Desktop)
+    polardbx-zero-mcp --transport http   # HTTP transport (for web clients)
 
 Environment variables (all optional):
     POLARDBX_ZERO_API  - Zero API endpoint (default: https://zero.polardbx.com/api/v1/instances)

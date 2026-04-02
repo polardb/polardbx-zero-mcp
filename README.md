@@ -157,9 +157,9 @@ For operations that need session state (SET variables, transactions):
 ## Development
 
 ```bash
-uv sync                              # Install dependencies
-uv run mcp dev server.py             # Test with MCP Inspector
-uv run server.py --transport http    # Run HTTP server
+pip install -e .                     # Install in editable mode
+mcp dev server.py                    # Test with MCP Inspector
+polardbx-zero-mcp --transport http   # Run HTTP server
 ```
 
 ## License
