@@ -103,18 +103,15 @@ Or use individual variables:
 | `create_instance` | Create a new PolarDB-X Cloud Zero instance (standard or enterprise) |
 | `remove_instance` | Remove an instance and close all its connections |
 | `get_instance_status` | Check a specific instance's connection info and remaining TTL |
-| `get_database_info` | Database version, connection info, table count for an instance |
 
 ### SQL Execution
 
-All SQL tools require `instance_id`.
+All SQL tools require `instance_id`. Use `execute_sql_tool` for any SQL including `SHOW TABLES`, `DESCRIBE`, `SHOW DATABASES`, etc.
 
 | Tool | Description |
 |:---|:---|
 | `execute_sql_tool` | Execute any SQL statement (no type restrictions) |
 | `batch_execute` | Execute multiple SQL statements sequentially |
-| `list_tables` | List all tables in the database |
-| `describe_table` | Get table schema (columns, types, keys) |
 
 ### Stateful Connections
 
@@ -136,6 +133,7 @@ Connections are bound to a specific instance. The `conn_id` includes the instanc
 | `name` | string | `""` | Optional name (e.g. "mydb"). Auto-generates `inst_N` if empty |
 | `edition` | string | `"standard"` | `"standard"` or `"enterprise"` |
 | `ttl_minutes` | int | `720` | Instance TTL in minutes (default 12h) |
+| `whitelist` | string | `""` | IP whitelist (e.g. "1.2.3.4,5.6.7.0/24"). Pass "auto" to use the server's public IP |
 
 **execute_sql_tool:**
 
@@ -167,7 +165,7 @@ Connections are bound to a specific instance. The `conn_id` includes the instanc
 
 ```bash
 pip install -e .                     # Install in editable mode
-mcp dev server.py                    # Test with MCP Inspector
+mcp dev polardbx_zero_mcp.py          # Test with MCP Inspector
 polardbx-zero-mcp --transport http   # Run HTTP server
 ```
 

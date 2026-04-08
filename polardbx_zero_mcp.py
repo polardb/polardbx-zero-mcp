@@ -239,9 +239,32 @@ def get_config(instance_id: str) -> PolarDBXConfig:
     return config
 
 
+_public_ip: str = ""
+
+
+async def _get_public_ip() -> str:
+    """Get the public IP of this machine. Cached after first call."""
+    global _public_ip
+    if _public_ip:
+        return _public_ip
+    for url in ("https://ifconfig.me/ip", "https://api.ipify.org"):
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(url, timeout=5)
+                if resp.status_code == 200:
+                    ip = resp.text.strip()
+                    if ip:
+                        _public_ip = ip
+                        return ip
+        except Exception:
+            continue
+    return ""
+
+
 async def _create_zero_instance(
     edition: str = "standard",
     ttl_minutes: int = DEFAULT_TTL_MINUTES,
+    whitelist: str = "",
 ) -> PolarDBXConfig:
     """Create a new PolarDB-X Cloud Zero instance via API."""
     api_url = os.environ.get("POLARDBX_ZERO_API", DEFAULT_ZERO_API)
@@ -250,6 +273,10 @@ async def _create_zero_instance(
     if edition:
         body["edition"] = edition
     body["ttlMinutes"] = ttl_minutes
+    if whitelist == "auto":
+        whitelist = await _get_public_ip()
+    if whitelist and whitelist != "auto":
+        body["whitelist"] = whitelist
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(api_url, json=body, timeout=60)
@@ -546,6 +573,7 @@ async def create_instance(
     name: str = "",
     edition: str = "standard",
     ttl_minutes: int = DEFAULT_TTL_MINUTES,
+    whitelist: str = "",
 ) -> str:
     """Create a new PolarDB-X Cloud Zero instance.
 
@@ -557,6 +585,9 @@ async def create_instance(
               Must match [a-zA-Z0-9_-], max 50 chars.
         edition: Instance edition - "standard" or "enterprise"
         ttl_minutes: Instance TTL in minutes (default: 720 = 12 hours)
+        whitelist: IP whitelist for the instance (e.g. "1.2.3.4,5.6.7.0/24").
+                   Pass "auto" to auto-detect the server's public IP.
+                   If empty, the API uses its default whitelist.
     """
     global _instance_counter
     try:
@@ -581,7 +612,7 @@ async def create_instance(
             _instances[instance_id] = None  # type: ignore[assignment]
 
         try:
-            config = await _create_zero_instance(edition=edition, ttl_minutes=ttl_minutes)
+            config = await _create_zero_instance(edition=edition, ttl_minutes=ttl_minutes, whitelist=whitelist)
         except Exception:
             # Un-reserve on API failure
             with _instance_lock:
@@ -617,6 +648,9 @@ async def remove_instance(instance_id: str) -> str:
     Args:
         instance_id: The instance to remove
     """
+    if instance_id == "env":
+        return "Cannot remove the 'env' instance (configured via environment variables)."
+
     with _instance_lock:
         config = _instances.pop(instance_id, None)
     if config is None:
@@ -663,6 +697,8 @@ async def get_instance_status(instance_id: str) -> str:
         f"Edition: {config.edition or '-'}\n"
         f"Host: {config.host}\n"
         f"Port: {config.port}\n"
+        f"Username: {config.username}\n"
+        f"Password: {config.password}\n"
         f"Database: {config.database}\n"
     )
     if config.assignment_id:
@@ -730,110 +766,6 @@ async def batch_execute(
             results.append(f"[{i + 1}] Error: {e}")
     return "\n".join(results)
 
-
-@mcp.tool()
-async def list_tables(instance_id: str, database: str = "") -> str:
-    """List all tables in the database.
-
-    Args:
-        instance_id: Target instance
-        database: Target database name (optional)
-    """
-    try:
-        result = await execute_sql(
-            "SHOW TABLES", instance_id=instance_id, database=database,
-        )
-        rows = result.get("rows_as_dicts", [])
-        if not rows:
-            return "No tables found. Use execute_sql_tool() to create one!"
-
-        tables = [list(row.values())[0] for row in rows]
-        return "\n".join(tables)
-    except Exception as e:
-        return f"Error: {e}"
-
-
-@mcp.tool()
-async def describe_table(table: str, instance_id: str, database: str = "") -> str:
-    """Get the schema of a table (columns, types, keys).
-
-    Args:
-        table: Table name to describe
-        instance_id: Target instance
-        database: Target database name (optional)
-    """
-    try:
-        safe_table = table.replace("`", "``")
-        result = await execute_sql(
-            f"DESCRIBE `{safe_table}`", instance_id=instance_id, database=database,
-        )
-        return format_results(result)
-    except Exception as e:
-        return f"Error: {e}"
-
-
-@mcp.tool()
-async def get_database_info(instance_id: str) -> str:
-    """Get database connection info, PolarDB-X version, and instance status.
-
-    Args:
-        instance_id: Target instance
-    """
-    try:
-        config = get_config(instance_id)
-
-        version_result = await execute_sql(
-            "SELECT VERSION() as version", instance_id=instance_id,
-        )
-        version_rows = version_result.get("rows_as_dicts", [])
-        version = list(version_rows[0].values())[0] if version_rows else "unknown"
-
-        db_result = await execute_sql(
-            "SELECT DATABASE() as db", instance_id=instance_id,
-        )
-        db_rows = db_result.get("rows_as_dicts", [])
-        current_db = list(db_rows[0].values())[0] if db_rows else None
-
-        dbs_result = await execute_sql("SHOW DATABASES", instance_id=instance_id)
-        all_dbs = [list(r.values())[0] for r in dbs_result.get("rows_as_dicts", [])]
-        user_dbs = [d for d in all_dbs if d.lower() not in
-                    ("information_schema", "mysql", "performance_schema", "sys",
-                     "__cdc__", "polardbx", "metadb")]
-
-        table_count = None
-        if current_db:
-            try:
-                tables_result = await execute_sql(
-                    "SHOW TABLES", instance_id=instance_id,
-                )
-                table_count = len(tables_result.get("rows_as_dicts", []))
-            except Exception:
-                pass
-
-        info = (
-            f"Instance: {instance_id}\n"
-            f"Edition: {config.edition or '-'}\n"
-            f"Current database: {current_db or '(none)'}\n"
-            f"PolarDB-X Version: {version}\n"
-            f"Host: {config.host}\n"
-            f"Port: {config.port}\n"
-        )
-        if table_count is not None:
-            info += f"Tables in {current_db}: {table_count}\n"
-        info += f"User databases: {', '.join(user_dbs) if user_dbs else '(none)'}\n"
-        info += f"Connection: MySQL protocol (pymysql)\n"
-
-        if config.expires_at:
-            info += f"Instance expires: {config.expires_at}\n"
-        if config.assignment_id:
-            info += f"Assignment ID: {config.assignment_id}\n"
-        info += (
-            f"\nPolarDB-X Cloud Zero — Free distributed MySQL for AI agents.\n"
-            f"Get yours at https://zero.polardbx.com"
-        )
-        return info
-    except Exception as e:
-        return f"Error: {e}"
 
 
 # --- Connection Tools ---

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "polardbx-zero-mcp"
-version = "0.2.0"
+version = "0.2.2"
 description = "MCP server that gives AI agents persistent MySQL databases via PolarDB-X Cloud Zero"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,11 +28,11 @@ Homepage = "https://github.com/polardb/polardbx-zero-mcp"
 Repository = "https://github.com/polardb/polardbx-zero-mcp"
 
 [project.scripts]
-polardbx-zero-mcp = "server:main"
+polardbx-zero-mcp = "polardbx_zero_mcp:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
-only-include = ["server.py"]
+only-include = ["polardbx_zero_mcp.py"]
 
 [tool.hatch.build.targets.sdist]
-only-include = ["server.py", "pyproject.toml", "README.md"]
+only-include = ["polardbx_zero_mcp.py", "pyproject.toml", "README.md"]
